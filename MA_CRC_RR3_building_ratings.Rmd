@@ -6,10 +6,14 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
+sessionInfo()
+# R version 3.4.2 (2017-09-28)
+# Platform: x86_64-apple-darwin15.6.0 (64-bit)
+# Running under: macOS Sierra 10.12.6
+
 knitr::opts_chunk$set(echo = TRUE)
 options(scipen=100)
-pacman::p_load(tidyverse, magrittr, fulltext, rotl, ape, dplyr, tidyr, rotl, fulltext, metafor, car, robumeta)
-#sessionInfo()
+pacman::p_load(tidyverse, rotl, ape, dplyr, tidyr, rotl, fulltext, metafor, car, robumeta)
 ```
 
 ```{r load data} 
@@ -44,14 +48,35 @@ lnRR_EUI_area # 4 ES available
 dat <- bind_cols(dat, lnRR_EUI, lnRR_EUI_area)
 dat
 
-write.csv(dat,file = "MA_data_lnRR.csv")
+write.csv(dat, file = "MA_data_lnRR.csv", row.names = FALSE)
 ```
 
 ################################ 1 - main analysis ################################
 
-```{r MA} 
+```{r MA fixed-effect models} 
+#dat <- read.csv(file = "MA_data_lnRR.csv")
 names(dat)
 
+# MA for building-weighted EUI:
+fixed_lnRR_EUI <- rma(yi = lnRR_EUI, vi = VlnRR_EUI, method = "FE", data = dat)
+summary(fixed_lnRR_EUI)
+#estimate      se    zval    pval    ci.lb   ci.ub   
+# 0.1013  0.0110  9.2264  <.0001  0.0798  0.1228  ***
+(exp(summary(fixed_lnRR_EUI)[[1]])-1)*100 #10.6% more efficent, ns
+forest(fixed_lnRR_EUI, slab=dat$study_ID)
+#save(fixed_lnRR_EUI,file = "fixed_lnRR_EUI.Rdata")
+
+# MA for area(gsf)-weighted	 EUI:
+fixed_lnRR_EUI_area <- rma(yi = lnRR_EUI_area, vi = VlnRR_EUI_area, method = "FE", data = dat)
+summary(fixed_lnRR_EUI_area)
+# estimate      se    zval    pval    ci.lb   ci.ub   
+# -0.0080  0.0110  -0.7271  0.4672  -0.0294  0.0135   
+(exp(summary(fixed_lnRR_EUI_area)[[1]])-1)*100 #0.8% less efficent, ns
+forest(fixed_lnRR_EUI_area, slab=dat$study_ID)
+#save(fixed_lnRR_EUI_area,file = "fixed_lnRR_EUI_area.Rdata")
+```
+
+```{r MA random-effects models} 
 # MA for building-weighted EUI:
 random_lnRR_EUI <- rma(yi = lnRR_EUI, vi = VlnRR_EUI, method = "REML", data = dat)
 summary(random_lnRR_EUI)
@@ -89,93 +114,106 @@ forest(random_lnRR_EUI_area, slab=dat$study_ID)
 ```
 
 
-```{r plots for report} 
-pdf(file="Fig_MA.pdf",width=5,height=10,pointsize=10)
+```{r plots for report - fixed and random effects models} 
+pdf(file="Fig_MA_fixed_random.pdf",width=5,height=10,pointsize=10)
 
 par(mfcol=c(2,1)) 
 par(mar=c(4,4,1,2))
 
 # building-weighted EUI
 res <- random_lnRR_EUI
-forest(res, xlab="Log Ratio of Means [lnRR]", mlab="RE Model", psize=1, slab=dat$study_ID) #main forest plot
+forest(res, xlab="Log Ratio of Means [lnRR]", mlab="Random-effects Model", psize=1, slab=dat$study_ID) #main forest plot
 # text(-4.1, -, pos=4, cex=1.1, bquote(paste("RE Model for All Studies (Q = ",
 #      .(formatC(res$QE, digits=2, format="f")), ", df = ", .(res$k - res$p),
 #      ", p = ", .(formatC(res$QEp, digits=2, format="f")), "; ", I^2, " = ",
 #      .(formatC(res$I2, digits=1, format="f")), "%)"))) # add text with Q-value, dfs, p-value, and I^2 statistic
-text(-13.5, -1.4, pos=4, cex=1.1, bquote(paste("(Q = ",
+text(-13.5, -1.6, pos=4, cex=1, bquote(paste("(Q = ",
      .(formatC(res$QE, digits=2, format="f")), ", df = ", .(res$k - res$p),
      ", p = ", .(formatC(res$QEp, digits=2, format="f")), "; ", I^2, " = ",
      .(formatC(res$I2, digits=1, format="f")), "%)"))) # add text with Q-value, dfs, p-value, and I^2 statistic
+addpoly(fixed_lnRR_EUI, row=-0.5, cex=1, mlab="Fixed-effect Model") # add summary polygon for the random model
 text(-13.5, 7,  "A. Building-weighted total EUI comparisons", cex=1.5, pos=4, font=2)
 
 # area-weighted EUI
 res <- random_lnRR_EUI_area
-forest(res, xlab="Log Ratio of Means [lnRR]", mlab="RE Model", psize=1, slab=dat$study_ID) #main forest plot
+forest(res, xlab="Log Ratio of Means [lnRR]", mlab="Random-effects Model", psize=1, slab=dat$study_ID) #main forest plot
 # text(-4.1, -, pos=4, cex=1.1, bquote(paste("RE Model for All Studies (Q = ",
 #      .(formatC(res$QE, digits=2, format="f")), ", df = ", .(res$k - res$p),
 #      ", p = ", .(formatC(res$QEp, digits=2, format="f")), "; ", I^2, " = ",
 #      .(formatC(res$I2, digits=1, format="f")), "%)"))) # add text with Q-value, dfs, p-value, and I^2 statistic
-text(-5.6, -1.4, pos=4, cex=1.1, bquote(paste("(Q = ",
+text(-5.6, -1.6, pos=4, cex=1, bquote(paste("(Q = ",
      .(formatC(res$QE, digits=2, format="f")), ", df = ", .(res$k - res$p),
      ", p = ", .(formatC(res$QEp, digits=2, format="f")), "; ", I^2, " = ",
      .(formatC(res$I2, digits=1, format="f")), "%)"))) # add text with Q-value, dfs, p-value, and I^2 statistic
+addpoly(fixed_lnRR_EUI_area, row=-0.5, cex=1, mlab="Fixed-effect Model") # add summary polygon for the random model
 text(-5.6, 6,  "B. Area-weighted total EUI comparisons", cex=1.5, pos=4, font=2)
 
 dev.off()
 ```
 
-
 ################################ 2 - alternative analysis ################################
-escluding study by Menassa_2012
+# excluding study by Menassa_2012
 
 ```{r load data exclude Menassa_2012} 
-#dat <- read.csv("Activity3_EUI_Comparison_ML_v5.csv")
-#dim(dat)
-
-### subset only the roes selected for meta-analysis
-table(dat$use_for_MA) # 6 rows to be used for meta-analysis (yes)
-dat <- dplyr::filter(dat, use_for_MA == "yes") 
-dat <- dplyr::filter(dat, study_ID != "Menassa_2012") 
-dim(dat) #5
-dat <- droplevels(dat) 
-str(dat)
+#dat <- read.csv(file = "MA_data_lnRR.csv")
+dat2 <- dplyr::filter(dat, study_ID != "Menassa_2012") 
+dim(dat2) #5
+dat2 <- droplevels(dat2) 
+str(dat2)
 ```
 
-
-```{r MA without Menassa_2012} 
-names(dat)
+```{r MA fixed-effects models without Menassa_2012} 
+names(dat2)
 
 # MA for building-weighted EUI:
-random_lnRR_EUI_extra <- rma(yi = lnRR_EUI, vi = VlnRR_EUI, method = "REML", data = dat)
+fixed_lnRR_EUI_extra <- rma(yi = lnRR_EUI, vi = VlnRR_EUI, method = "FE", data = dat2)
+summary(fixed_lnRR_EUI_extra)
+#estimate      se    zval    pval    ci.lb   ci.ub   
+# 0.1013  0.0110  9.2250  <.0001  0.0798  0.1228  ***
+(exp(summary(fixed_lnRR_EUI_extra)[[1]])-1)*100 #10.7% more efficent, ns
+forest(fixed_lnRR_EUI_extra, slab=dat2$study_ID)
+#save(fixed_lnRR_EUI_extra,file = "fixed_lnRR_EUI_extra.Rdata")
+
+# MA for area(gsf)-weighted	 EUI:
+fixed_lnRR_EUI_area_extra <- rma(yi = lnRR_EUI_area, vi = VlnRR_EUI_area, method = "FE", data = dat2)
+summary(fixed_lnRR_EUI_area_extra)
+# estimate      se    zval    pval    ci.lb   ci.ub   
+# -0.0081  0.0110  -0.7359  0.4618  -0.0295  0.0134  
+(exp(summary(fixed_lnRR_EUI_area_extra)[[1]])-1)*100 #0.17% more efficent, ns
+forest(fixed_lnRR_EUI_area_extra, slab=dat2$study_ID)
+#save(fixed_lnRR_EUI_area_extra,file = "fixed_lnRR_EUI_area_extra.Rdata")
+
+## overall v.similar results to these with Menassa_2012
+```
+
+```{r MA random-effects models without Menassa_2012} 
+# MA for building-weighted EUI:
+random_lnRR_EUI_extra <- rma(yi = lnRR_EUI, vi = VlnRR_EUI, method = "REML", data = dat2)
 summary(random_lnRR_EUI_extra)
-# I^2 (total heterogeneity / total variability):   98.31%
-# H^2 (total variability / sampling variability):  59.23
-# Test for Heterogeneity: 
-# Q(df = 3) = 240.0799, p-val < .0001
 #estimate      se    zval    pval    ci.lb   ci.ub   
 #  0.2082  0.1256  1.6575  0.0974  -0.0380  0.4544 
 (exp(summary(random_lnRR_EUI_extra)[[1]])-1)*100 #23.1% more efficent, ns
-forest(random_lnRR_EUI_extra, slab=dat$study_ID)
+forest(random_lnRR_EUI_extra, slab=dat2$study_ID)
 #save(random_lnRR_EUI_extra,file = "random_lnRR_EUI_extra.Rdata")
 
 #robust metafor
-#robust_lnRR_EUI_extra <- robust(random_lnRR_EUI_extra, cluster  =  dat$study_ID)
+#robust_lnRR_EUI_extra <- robust(random_lnRR_EUI_extra, cluster  =  dat2$study_ID)
 #summary(robust_lnRR_EUI_extra)
 # estimate      se    tval    pval    ci.lb   ci.ub   
 #    0.2082  0.1238  1.6820  0.1912  -0.1857  0.6021 
 
 
 # MA for area(gsf)-weighted	 EUI:
-random_lnRR_EUI_area_extra <- rma(yi = lnRR_EUI_area, vi = VlnRR_EUI_area, method = "REML", data = dat)
+random_lnRR_EUI_area_extra <- rma(yi = lnRR_EUI_area, vi = VlnRR_EUI_area, method = "REML", data = dat2)
 summary(random_lnRR_EUI_area_extra)
 # estimate      se    zval    pval    ci.lb   ci.ub   
 #   0.0017  0.0259  0.0650  0.9482  -0.0490  0.0524   
 (exp(summary(random_lnRR_EUI_area_extra)[[1]])-1)*100 #0.17% more efficent, ns
-forest(random_lnRR_EUI_area_extra, slab=dat$study_ID)
+forest(random_lnRR_EUI_area_extra, slab=dat2$study_ID)
 #save(random_lnRR_EUI_area_extra,file = "random_lnRR_EUI_area_extra.Rdata")
 
 #robust metafor
-#robust_lnRR_EUI_area_extra <- robust(random_lnRR_EUI_area_extra, cluster  =  dat$study_ID)
+#robust_lnRR_EUI_area_extra <- robust(random_lnRR_EUI_area_extra, cluster  =  dat2$study_ID)
 #summary(robust_lnRR_EUI_area_extra)
 # estimate      se    tval    pval    ci.lb   ci.ub   
 #  0.0022  0.0239  0.0922  0.9323  -0.0740  0.0784 
@@ -185,72 +223,91 @@ forest(random_lnRR_EUI_area_extra, slab=dat$study_ID)
 
 
 ################################ 3 - alternative analysis ################################
-#with multiple effect sizes per study
+# with multiple effect sizes per study
 
 ```{r load data larger subset} 
 dat <- read.csv("Activity3_EUI_Comparison_ML_v5.csv")
 dim(dat)
 
 ### subset only the rows selected for 2nd meta-analysis
-table(dat$use_for_MA) # 6 rows to be used for meta-analysis (yes)
-dat <- dplyr::filter(dat, use_for_MA2 == "yes") 
-dim(dat) #13
-dat <- droplevels(dat) 
-str(dat)
+dat3 <- dplyr::filter(dat, use_for_MA2 == "yes") 
+dim(dat3) #13
+dat3 <- droplevels(dat3) 
+str(dat3)
 ```
 
 
-```{r calculate ES adjusted for multiple comparisons} 
-names(dat)
+```{r calculate ES with N adjusted for multiple comparisons} 
+names(dat3)
 
 #for building-weighted EUI:
-lnRR_EUI <- escalc(measure = "ROM", n1i = dat$NCB_N2, n2i = dat$CB_N2, m1i = dat$NCB_EUI_mean, 
-    m2 = dat$CB_EUI_mean, sd1i = dat$NCB_EUI_SD, sd2i = dat$CB_EUI_SD, var.names	= c("lnRR_EUI", "VlnRR_EUI"))
+lnRR_EUI <- escalc(measure = "ROM", n1i = dat3$NCB_N2, n2i = dat3$CB_N2, m1i = dat3$NCB_EUI_mean, 
+    m2 = dat3$CB_EUI_mean, sd1i = dat3$NCB_EUI_SD, sd2i = dat3$CB_EUI_SD, var.names	= c("lnRR_EUI", "VlnRR_EUI"))
 lnRR_EUI
 
 
 #for area(gsf)-weighted	 EUI:
-lnRR_EUI_area <- escalc(measure = "ROM", n1i = dat$NCB_N2, n2i = dat$CB_N2, m1i = dat$NCB_EUI_area_mean, 
-    m2 = dat$CB_EUI_area_mean, sd1i = dat$NCB_EUI_area_SD, sd2i = dat$CB_EUI_area_SD, var.names	= c("lnRR_EUI_area", "VlnRR_EUI_area"))
+lnRR_EUI_area <- escalc(measure = "ROM", n1i = dat3$NCB_N2, n2i = dat3$CB_N2, m1i = dat3$NCB_EUI_area_mean, 
+    m2 = dat3$CB_EUI_area_mean, sd1i = dat3$NCB_EUI_area_SD, sd2i = dat3$CB_EUI_area_SD, var.names	= c("lnRR_EUI_area", "VlnRR_EUI_area"))
 lnRR_EUI_area
 
 
-dat <- bind_cols(dat, lnRR_EUI, lnRR_EUI_area)
-dat
+dat3 <- bind_cols(dat3, lnRR_EUI, lnRR_EUI_area)
+dat3
 
-write.csv(dat,file = "MA_data_lnRR2.csv")
+write.csv(dat3,file = "MA_data_lnRR2.csv", row.names = FALSE)
 ```
 
 
-```{r MA adjusted for multiple comparisons} 
-names(dat)
+```{r MA fixed-effects models adjusted for multiple comparisons} 
 
 # MA for building-weighted EUI:
-random_lnRR_EUI <- rma.mv(yi = lnRR_EUI, V = VlnRR_EUI, random=list(~1|study_ID), method = "REML", data = dat)
+fixed_lnRR_EUI <- rma.mv(yi = lnRR_EUI, V = VlnRR_EUI, method = "FE", data = dat3)
+summary(fixed_lnRR_EUI)
+#estimate      se    zval    pval    ci.lb   ci.ub   
+# 0.0906  0.0117  7.7228  <.0001  0.0676  0.1136  ***
+(exp(summary(fixed_lnRR_EUI)[[1]])-1)*100 #9.5% more efficent
+forest(fixed_lnRR_EUI, slab=dat3$study_ID)
+
+
+# MA for area(gsf)-weighted	 EUI:
+fixed_lnRR_EUI_area <- rma.mv(yi = lnRR_EUI_area, V = VlnRR_EUI_area, method = "FE", data = dat3)
+summary(fixed_lnRR_EUI_area)
+# estimate      se    zval    pval    ci.lb   ci.ub   
+# -0.0210  0.0117  -1.8056  0.0710  -0.0439  0.0018  .
+(exp(summary(fixed_lnRR_EUI_area)[[1]])-1)*100 #2.1% less efficent, ns
+forest(fixed_lnRR_EUI_area, slab=dat3$study_ID)
+```
+
+
+```{r MA random-effects models adjusted for multiple comparisons} 
+
+# MA for building-weighted EUI:
+random_lnRR_EUI <- rma.mv(yi = lnRR_EUI, V = VlnRR_EUI, random=list(~1|study_ID), method = "REML", data = dat3)
 summary(random_lnRR_EUI)
 #(df = 11) = 334.9719, p-val < .0001
 #estimate      se    zval    pval    ci.lb   ci.ub   
 #   0.1763  0.1160  1.5198  0.2032  -0.1457  0.4983 
 (exp(summary(random_lnRR_EUI)[[1]])-1)*100 #19.27% more efficent, ns
-forest(random_lnRR_EUI, slab=dat$study_ID)
+forest(random_lnRR_EUI, slab=dat3$study_ID)
 
 #robust metafor
-#robust_lnRR_EUI <- robust(random_lnRR_EUI, cluster  =  dat$study_ID)
+#robust_lnRR_EUI <- robust(random_lnRR_EUI, cluster  =  dat3$study_ID)
 #summary(robust_lnRR_EUI)
 # estimate      se    tval    pval    ci.lb   ci.ub   
 # 0.1763  0.1160  1.5198  0.2032  -0.1457  0.4983
 
 
 # MA for area(gsf)-weighted	 EUI:
-random_lnRR_EUI_area <- rma.mv(yi = lnRR_EUI_area, V = VlnRR_EUI_area, random=list(~1|study_ID), method = "REML", data = dat)
+random_lnRR_EUI_area <- rma.mv(yi = lnRR_EUI_area, V = VlnRR_EUI_area, random=list(~1|study_ID), method = "REML", data = dat3)
 summary(random_lnRR_EUI_area)
 # estimate      se    zval    pval    ci.lb   ci.ub   
 #   -0.0069  0.0326  -0.2128  0.8315  -0.0708  0.0569 
 (exp(summary(random_lnRR_EUI_area)[[1]])-1)*100 #0.7% less efficent, ns
-forest(random_lnRR_EUI_area, slab=dat$study_ID)
+forest(random_lnRR_EUI_area, slab=dat3$study_ID)
 
 #robust metafor
-#robust_lnRR_EUI_area <- robust(random_lnRR_EUI_area, cluster  =  dat$study_ID)
+#robust_lnRR_EUI_area <- robust(random_lnRR_EUI_area, cluster  =  dat3$study_ID)
 #summary(robust_lnRR_EUI_area)
 # estimate      se    tval    pval    ci.lb   ci.ub   
 # -0.0069  0.0305  -0.2274  0.8347  -0.1039  0.0901  
