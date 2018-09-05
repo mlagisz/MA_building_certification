@@ -7,13 +7,13 @@ output: html_document
 
 ```{r setup, include=FALSE}
 sessionInfo()
-# R version 3.4.2 (2017-09-28)
+# R version 3.5.1 (2018-07-02)
 # Platform: x86_64-apple-darwin15.6.0 (64-bit)
 # Running under: macOS Sierra 10.12.6
 
 knitr::opts_chunk$set(echo = TRUE)
 options(scipen=100)
-pacman::p_load(tidyverse, rotl, ape, dplyr, tidyr, rotl, fulltext, metafor, car, robumeta)
+pacman::p_load(tidyverse, rotl, ape, dplyr, tidyr, rotl, fulltext, metafor, car, robumeta, ggplot2, ggpubr, colourpicker, Rmisc)
 ```
 
 ```{r load data} 
@@ -115,7 +115,7 @@ forest(random_lnRR_EUI_area, slab=dat$study_ID)
 
 
 ```{r plots for report - fixed and random effects models} 
-pdf(file="Fig_MA_fixed_random.pdf",width=5,height=10,pointsize=10)
+pdf(file="Fig_MA_fixed_random.pdf",width=10,height=8,pointsize=11)
 
 par(mfcol=c(2,1)) 
 par(mar=c(4,4,1,2))
@@ -132,7 +132,7 @@ text(-13.5, -1.6, pos=4, cex=1, bquote(paste("(Q = ",
      ", p = ", .(formatC(res$QEp, digits=2, format="f")), "; ", I^2, " = ",
      .(formatC(res$I2, digits=1, format="f")), "%)"))) # add text with Q-value, dfs, p-value, and I^2 statistic
 addpoly(fixed_lnRR_EUI, row=-0.5, cex=1, mlab="Fixed-effect Model") # add summary polygon for the random model
-text(-13.5, 7,  "A. Building-weighted total EUI comparisons", cex=1.5, pos=4, font=2)
+text(-13.5, 7,  "A. Building-weighted total EUI comparisons", cex=1.2, pos=4, font=2)
 
 # area-weighted EUI
 res <- random_lnRR_EUI_area
@@ -146,9 +146,103 @@ text(-5.6, -1.6, pos=4, cex=1, bquote(paste("(Q = ",
      ", p = ", .(formatC(res$QEp, digits=2, format="f")), "; ", I^2, " = ",
      .(formatC(res$I2, digits=1, format="f")), "%)"))) # add text with Q-value, dfs, p-value, and I^2 statistic
 addpoly(fixed_lnRR_EUI_area, row=-0.5, cex=1, mlab="Fixed-effect Model") # add summary polygon for the random model
-text(-5.6, 6,  "B. Area-weighted total EUI comparisons", cex=1.5, pos=4, font=2)
+text(-5.6, 6,  "B. Area-weighted total EUI comparisons", cex=1.2, pos=4, font=2)
 
 dev.off()
+```
+
+
+```{r plots for report - dataset} 
+#dat <- read.csv(file = "MA_data_lnRR.csv")
+
+#number of buildings per group
+dat %>% dplyr::select(study_ID, CB_N, NCB_N) %>% tidyr::gather(group, N, CB_N, NCB_N) -> dat_N
+#total area of buildings per group
+dat %>% dplyr::select(study_ID, CB_total_area, NCB_total_area) %>% tidyr::gather(group, total_area, CB_total_area, NCB_total_area) -> dat_total_area
+#EUI_mean of buildings per group
+dat %>% dplyr::select(study_ID, CB_EUI_mean, NCB_EUI_mean) %>% tidyr::gather(group, EUI_mean, CB_EUI_mean, NCB_EUI_mean) -> dat_EUI_mean
+#EUI_SD of buildings per group
+dat %>% dplyr::select(study_ID, CB_EUI_SD, NCB_EUI_SD) %>% tidyr::gather(group, EUI_SD, CB_EUI_SD, NCB_EUI_SD) -> dat_EUI_SD
+#EUI_area_mean of buildings per group
+dat %>% dplyr::select(study_ID, CB_EUI_area_mean, NCB_EUI_area_mean) %>% tidyr::gather(group, EUI_area_mean, CB_EUI_area_mean, NCB_EUI_area_mean) -> dat_EUI_area_mean
+#EUI_area_SD of buildings per group
+dat %>% dplyr::select(study_ID, CB_EUI_area_SD, NCB_EUI_area_SD) %>% tidyr::gather(group, EUI_area_SD, CB_EUI_area_SD, NCB_EUI_area_SD) -> dat_EUI_area_SD
+#bind
+dat_group <- dplyr::bind_cols(dat_N, dat_total_area, dat_EUI_mean, dat_EUI_SD, dat_EUI_area_mean, dat_EUI_area_SD)
+#remove redundant columns
+dat_group %>% dplyr::select(study_ID, group, N, total_area, EUI_mean, EUI_SD, EUI_area_mean, EUI_area_SD) -> dat_group
+#rename levels, by name
+dat_group$group <- factor(dat_group$group)
+levels(dat_group$group) <- list(certified = "CB_N", comparison = "NCB_N")
+
+
+### PLOTS
+
+pdf(file="Fig_summary_data.pdf",width=6,height=12,pointsize=11)
+
+theme_set(theme_pubclean())
+
+# #bar plot of number of buildings
+# p <- ggplot(dat_group, aes(x = study_ID, y = N)) +
+#   geom_bar(
+#     aes(color = group, fill = group),
+#     stat = "identity", position = position_dodge(0.8),
+#     width = 0.7
+#     ) +
+#   scale_color_manual(values = c("#66CDAA", "#EFC000FF"))+
+#   scale_fill_manual(values = c("#66CDAA", "#EFC000FF"))
+# p
+# p + theme(axis.text.x = element_text(size=12, angle=270)) + theme(legend.title=element_blank()) + scale_x_discrete(name="") + scale_y_continuous(name="Number of buildings")
+
+#bar plot of total floor area / number of buildings
+p1 <- ggplot(dat_group, aes(x = study_ID, y = total_area/N)) +
+  geom_bar(
+    aes(color = group, fill = group),
+    stat = "identity", position = position_dodge(0.8),
+    width = 0.7
+    ) +
+  scale_color_manual(values = c("#66CDAA", "#EFC000FF")) +
+  scale_fill_manual(values = c("#66CDAA", "#EFC000FF")) +
+  theme(axis.text.x = element_text(size=12, angle=270)) +
+  theme(legend.title=element_blank()) +
+  theme(legend.justification = "top") +
+  scale_x_discrete(name="", labels=NULL) +
+  scale_y_continuous(name="Average building size [ft2]") +
+  ggtitle("A.  Average building sizes")
+
+#box plots of building-weighted EUI
+p2 <- ggplot(dat_group, aes(x = study_ID, color = group)) +
+  geom_pointrange(aes(y = EUI_mean, ymax = EUI_mean + EUI_SD, ymin = EUI_mean - EUI_SD),
+                position = position_dodge(0.8)) +
+  scale_color_manual(values = c("#66CDAA", "#EFC000FF")) +
+  scale_fill_manual(values = c("#66CDAA", "#EFC000FF")) +
+  theme(legend.position="none") +
+  theme(legend.title=element_blank()) +
+  scale_x_discrete(name="", labels=NULL) +
+  ggtitle("B.  Building-weighted EUI") +
+  scale_y_continuous(name="Building-weighted EUI [kBtu/ft2/year]")
+
+#box plots of area-weigted EUI
+p3 <- ggplot(dat_group, aes(x = study_ID, color = group)) +
+  geom_pointrange(aes(y = EUI_area_mean, ymax = EUI_area_mean + EUI_area_SD, ymin = EUI_area_mean - EUI_area_SD),
+                position = position_dodge(0.8)) +
+  scale_color_manual(values = c("#66CDAA", "#EFC000FF")) +
+  scale_fill_manual(values = c("#66CDAA", "#EFC000FF")) +
+  theme(axis.text.x = element_text(size=12, angle=270)) +
+  theme(legend.title=element_blank()) +
+  theme(legend.position="none") +
+  theme(legend.title=element_blank()) +
+  scale_x_discrete(name="") +
+  scale_y_continuous(name="Area-weighted EUI [kBtu/ft2/year]") +
+    ggtitle("C.  Area-weighted EUI") +
+  geom_text(aes(label = N, y = -30), position = position_dodge(0.1), vjust = 0)
+
+multiplot(p1, p2, p3, cols=1)
+
+dev.off()
+
+#NOTE: plot needs tidying up in Adobe Illustrator
+
 ```
 
 ################################ 2 - alternative analysis ################################
