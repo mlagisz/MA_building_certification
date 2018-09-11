@@ -152,8 +152,8 @@ dev.off()
 ```
 
 
-```{r plots for report - dataset} 
-#dat <- read.csv(file = "MA_data_lnRR.csv")
+```{r plots for report - prepare dataset} 
+dat <- read.csv(file = "MA_data_lnRR.csv")
 
 #number of buildings per group
 dat %>% dplyr::select(study_ID, CB_N, NCB_N) %>% tidyr::gather(group, N, CB_N, NCB_N) -> dat_N
@@ -174,11 +174,12 @@ dat_group %>% dplyr::select(study_ID, group, N, total_area, EUI_mean, EUI_SD, EU
 #rename levels, by name
 dat_group$group <- factor(dat_group$group)
 levels(dat_group$group) <- list(certified = "CB_N", comparison = "NCB_N")
-
+```
 
 ### PLOTS
+```{r plots for report - plot} 
 
-pdf(file="Fig_summary_data.pdf",width=6,height=12,pointsize=11)
+pdf(file="Fig_summary_data_v2.pdf",width=6,height=12,pointsize=11)
 
 theme_set(theme_pubclean())
 
@@ -207,8 +208,8 @@ p1 <- ggplot(dat_group, aes(x = study_ID, y = total_area/N)) +
   theme(legend.title=element_blank()) +
   theme(legend.justification = "top") +
   scale_x_discrete(name="", labels=NULL) +
-  scale_y_continuous(name="Average building size [ft2]") +
-  ggtitle("A.  Average building sizes")
+  scale_y_continuous(name="Average building size [ft2]", sec.axis = sec_axis(~ . * 0.092903, name = "Average building size [m2]")) +
+  ggtitle("A.  Average building sizes      ")
 
 #box plots of building-weighted EUI
 p2 <- ggplot(dat_group, aes(x = study_ID, color = group)) +
@@ -220,7 +221,8 @@ p2 <- ggplot(dat_group, aes(x = study_ID, color = group)) +
   theme(legend.title=element_blank()) +
   scale_x_discrete(name="", labels=NULL) +
   ggtitle("B.  Building-weighted EUI") +
-  scale_y_continuous(name="Building-weighted EUI [kBtu/ft2/year]")
+  coord_cartesian(ylim = c(0, 300)) +
+  scale_y_continuous(name="Building-weighted EUI [kBtu/ft2/year]", sec.axis = sec_axis(~ . * 0.00315459, name = "Building-weighted EUI [kWh/m2/year]"))
 
 #box plots of area-weigted EUI
 p3 <- ggplot(dat_group, aes(x = study_ID, color = group)) +
@@ -233,16 +235,16 @@ p3 <- ggplot(dat_group, aes(x = study_ID, color = group)) +
   theme(legend.position="none") +
   theme(legend.title=element_blank()) +
   scale_x_discrete(name="") +
-  scale_y_continuous(name="Area-weighted EUI [kBtu/ft2/year]") +
-    ggtitle("C.  Area-weighted EUI") +
-  geom_text(aes(label = N, y = -30), position = position_dodge(0.1), vjust = 0)
+  scale_y_continuous(name="Area-weighted EUI [kBtu/ft2/year]", sec.axis = sec_axis(~ . * 0.00315459, name = "Area-weighted EUI [kWh/m2/year]")) +
+  coord_cartesian(ylim = c(0, 300)) +
+  ggtitle("C.  Area-weighted EUI") +
+  geom_text(aes(label = N, y = 0), position = position_dodge(0.8), vjust = 0)
 
 multiplot(p1, p2, p3, cols=1)
 
 dev.off()
 
 #NOTE: plot needs tidying up in Adobe Illustrator
-
 ```
 
 ################################ 2 - alternative analysis ################################
